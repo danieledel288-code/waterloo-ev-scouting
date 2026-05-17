@@ -13,11 +13,22 @@ from flask_socketio import SocketIO, emit
 
 DB = os.path.join(os.path.dirname(__file__), 'scouting.db')
 SCHEMA = os.path.join(os.path.dirname(__file__), 'schema.sql')
-TRACK_LENGTH_M = 1000  # 1 km Waterloo EV track
+TRACK_LENGTH_M = 700    # Waterloo EV track length (meters)
+TARGET_LAPS = 50        # Goal laps for the 70-minute event
+OUR_TEAM_NAME = '839'
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'waterloo-ev-scouting'
 socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading')
+
+
+@app.context_processor
+def inject_globals():
+    return {
+        'TRACK_LENGTH_M': TRACK_LENGTH_M,
+        'TARGET_LAPS': TARGET_LAPS,
+        'OUR_TEAM_NAME': OUR_TEAM_NAME,
+    }
 
 
 def db():
@@ -39,7 +50,13 @@ def init_db():
         with open(SCHEMA) as f:
             conn.executescript(f.read())
         conn.execute(
-            "INSERT OR IGNORE INTO teams (id, name, color) VALUES (1, 'Our Team', '#22c55e')"
+            "INSERT OR IGNORE INTO teams (id, name, color) VALUES (1, ?, '#faff00')",
+            (OUR_TEAM_NAME,)
+        )
+        # If the seeded row still has an old name (from a previous run), rename it.
+        conn.execute(
+            "UPDATE teams SET name = ? WHERE id = 1 AND name IN ('Our Team', 'OUR TEAM')",
+            (OUR_TEAM_NAME,)
         )
         conn.commit()
 

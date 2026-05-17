@@ -1,6 +1,6 @@
 # Waterloo EV Scouting
 
-Local-network scouting app for the Waterloo EV Challenge. Scouts on phones tap a button each time a team crosses start/finish; the server computes lap time and average speed (1 km track length). Our Pi pushes live ground speed over WebSocket.
+Local-network scouting app for the Waterloo EV Challenge (Team 839). Scouts on phones tap a button each time a team crosses start/finish; the server computes lap time and average speed (700 m track length, 50-lap target over the 70 min event). Our Pi pushes live ground speed over WebSocket.
 
 ## On the laptop (server)
 

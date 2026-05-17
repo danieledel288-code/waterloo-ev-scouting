@@ -179,6 +179,69 @@ main {
   margin: 0.15rem 0 0;
 }
 
+/* ---------- DASHBOARD: CIRCUIT MAP CARD ---------- */
+.circuit-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(220px, 1fr);
+  gap: 0;
+  background: var(--bg-1);
+  border: 1px solid var(--rule);
+  margin-bottom: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+.circuit-map {
+  position: relative;
+  overflow: hidden;
+  background: #000;
+  min-height: 220px;
+}
+.circuit-map img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: contrast(1.05) saturate(0.85);
+}
+.circuit-tag {
+  position: absolute;
+  top: 0.8rem; left: 0.8rem;
+  background: var(--yellow);
+  color: var(--bg);
+  font-family: var(--f-mono);
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  padding: 4px 8px;
+}
+.circuit-facts {
+  display: grid;
+  grid-template-rows: repeat(4, 1fr);
+  border-left: 1px solid var(--rule);
+}
+.circuit-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 0.9rem 1.2rem;
+  border-bottom: 1px solid var(--rule);
+  gap: 1rem;
+}
+.circuit-row:last-child { border-bottom: 0; }
+.circuit-val {
+  font-family: var(--f-display);
+  font-size: 1.7rem; line-height: 1;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+.circuit-val small {
+  font-family: var(--f-mono); font-weight: 700;
+  font-size: 0.65rem; letter-spacing: 0.2em;
+  color: var(--ink-3); margin-left: 4px;
+}
+.circuit-val.mono-val {
+  font-family: var(--f-mono); font-weight: 700;
+  font-size: 1rem; letter-spacing: 0.12em;
+}
+
 /* ---------- DASHBOARD: OUR-CAR STRIP ---------- */
 .our-strip {
   display: grid;
@@ -228,10 +291,49 @@ main {
   color: var(--ink-2);
 }
 
+/* OUR-progress (lap count / target) — sits in the right column of our-strip */
+.progress-readout {
+  display: flex; align-items: baseline; gap: 0.3rem;
+  margin: 0.3rem 0 0.5rem;
+  line-height: 1;
+}
+.progress-laps {
+  font-family: var(--f-display);
+  font-size: 2.6rem;
+  color: var(--yellow);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.progress-sep {
+  font-family: var(--f-display);
+  font-size: 1.6rem;
+  color: var(--ink-3);
+  margin: 0 2px;
+}
+.progress-tgt {
+  font-family: var(--f-display);
+  font-size: 1.6rem;
+  color: var(--ink-2);
+}
+.progress-track {
+  height: 6px;
+  background: #060606;
+  border: 1px solid var(--rule);
+  margin: 0.2rem 0 0.6rem;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%; width: 0%;
+  background: var(--yellow);
+  transition: width 0.4s ease-out;
+}
+.progress-fill.over { background: var(--green); }
+
 .link-row {
   display: flex; align-items: center; gap: 0.5rem;
-  margin: 0.4rem 0 1rem;
+  margin: 0.4rem 0 0;
 }
+.strip-sep { color: var(--ink-3); }
 .state-text {
   font-family: var(--f-mono); font-weight: 700;
   font-size: 0.95rem; letter-spacing: 0.15em;
@@ -274,6 +376,37 @@ main {
 }
 .dot-best { background: var(--green); }
 .dot-lead { background: var(--yellow); }
+.dot-tgt  { background: var(--cyan); }
+
+/* Per-row progress bar in the leaderboard. */
+.col-tgt { width: 160px; }
+.row-progress {
+  display: flex; align-items: center; gap: 0.6rem;
+}
+.row-progress-track {
+  flex: 1;
+  height: 6px;
+  background: #060606;
+  border: 1px solid var(--rule);
+  overflow: hidden;
+  min-width: 60px;
+}
+.row-progress-fill {
+  height: 100%; width: 0%;
+  background: var(--cyan);
+  transition: width 0.4s ease-out;
+}
+.row-progress-fill.over { background: var(--green); }
+.row-progress-text {
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+  color: var(--ink-2);
+  letter-spacing: 0.04em;
+  min-width: 50px;
+  text-align: right;
+}
+tr.is-ours .row-progress-fill:not(.over) { background: var(--yellow); }
 
 #board {
   width: 100%;
@@ -691,6 +824,12 @@ main {
   .strip-mid { border-left: none; border-right: none;
                border-top: 1px solid var(--rule);
                border-bottom: 1px solid var(--rule); padding: 0.8rem 1.4rem; }
+  .circuit-card { grid-template-columns: 1fr; }
+  .circuit-facts { grid-template-rows: auto;
+                   grid-template-columns: repeat(2, 1fr);
+                   border-left: none; border-top: 1px solid var(--rule); }
+  .circuit-row:nth-child(odd) { border-right: 1px solid var(--rule); }
+  .circuit-map { min-height: 240px; }
   .driver-grid { grid-template-columns: 1fr; }
   .telemetry-stack { display: grid; grid-template-columns: repeat(2, 1fr); }
   .board-head { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
@@ -711,11 +850,13 @@ main {
   .page-title { font-size: 3rem; }
   .lap-btn-label { font-size: 6rem; }
 
-  /* Compact the board on phones: hide a couple of less-critical columns. */
-  #board th.num:nth-child(5),
-  #board td.num:nth-child(5),
-  #board th.num:nth-child(7),
-  #board td.num:nth-child(7) { display: none; }
+  /* Compact the board on phones: hide a few less-critical columns.
+     Column order: 1=P, 2=Team, 3=Laps, 4=Progress, 5=Last, 6=LastKMH, 7=Best, 8=Avg */
+  #board th:nth-child(4), #board td:nth-child(4),   /* progress */
+  #board th:nth-child(6), #board td:nth-child(6),   /* last km/h */
+  #board th:nth-child(8), #board td:nth-child(8) {  /* avg km/h */
+    display: none;
+  }
 
   .active-stats { grid-template-columns: repeat(3, 1fr); }
   .stat { padding: 0.6rem; }
