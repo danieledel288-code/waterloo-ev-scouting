@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}DRIVER{% endblock %}
+{% block content %}
+
+<section class="page-head">
+  <div class="kicker">CH. 01 / OUR CAR</div>
+  <h1 class="page-title">DRIVER&nbsp;VIEW</h1>
+  <div class="page-sub">RASPBERRY PI 4 · CANIVORE · 2× KRAKEN X60</div>
+</section>
+
+<section class="driver-grid">
+  <div class="speed-card">
+    <div class="card-head">
+      <span class="microlabel">GROUND SPEED</span>
+      <span class="card-head-right">
+        <span id="conn-pip" class="pip pip-dead"></span>
+        <span id="conn-state" class="state-text">OFFLINE</span>
+      </span>
+    </div>
+
+    <div class="speed-readout">
+      <span id="speed" class="numera mega">--</span>
+      <span class="unit-big">KM/H</span>
+    </div>
+
+    <div class="gauge" aria-hidden="true">
+      <div id="gauge-bar" class="gauge-bar"></div>
+      <div class="gauge-ticks">
+        <span>0</span><span>10</span><span>20</span><span>30</span><span>40</span><span>50</span>
+      </div>
+    </div>
+
+    <p id="conn-hint" class="hint">WAITING FOR PI TO CONNECT…</p>
+  </div>
+
+  <aside class="telemetry-stack">
+    <div class="tile">
+      <span class="microlabel">MOTOR RPM</span>
+      <span id="rpm" class="tile-val mono">—</span>
+    </div>
+    <div class="tile">
+      <span class="microlabel">BATTERY</span>
+      <span id="volt" class="tile-val mono">—</span>
+    </div>
+    <div class="tile">
+      <span class="microlabel">LAST PACKET</span>
+      <span id="age" class="tile-val mono">NEVER</span>
+    </div>
+    <div class="tile tile-meta">
+      <span class="microlabel">CIRCUIT</span>
+      <span class="tile-val tile-val-sm">CH. 01 · 1000 M</span>
+    </div>
+  </aside>
+</section>
+
+<script>
+const sock = io();
+let lastTs = 0;
+const SPEED_MAX = 50; // gauge top end (km/h)
+
+sock.on('our_speed', d => {
+  const v = d.speed_kmh;
+  document.getElementById('speed').textContent = v.toFixed(1);
+  document.getElementById('rpm').textContent  = d.rpm  != null ? d.rpm.toFixed(0)        : '—';
+  document.getElementById('volt').textContent = d.volt != null ? d.volt.toFixed(2) + ' V' : '—';
+  document.getElementById('conn-hint').textContent = 'TELEMETRY LIVE.';
+  document.getElementById('conn-pip').className = 'pip pip-live';
+  document.getElementById('conn-state').textContent = 'LIVE';
+  const pct = Math.max(0, Math.min(1, v / SPEED_MAX));
+  document.getElementById('gauge-bar').style.width = (pct * 100).toFixed(1) + '%';
+  lastTs = Date.now();
+});
+
+setInterval(() => {
+  const age = (Date.now() - lastTs) / 1000;
+  document.getElementById('age').textContent = lastTs ? age.toFixed(1) + 'S' : 'NEVER';
+  if (lastTs && age > 3) {
+    document.getElementById('conn-hint').textContent = 'NO TELEMETRY FOR ' + age.toFixed(0) + 'S · PI MAY HAVE DISCONNECTED.';
+    document.getElementById('conn-pip').className = 'pip pip-dead';
+    document.getElementById('conn-state').textContent = 'STALE';
+  }
+}, 200);
+</script>
+{% endblock %}

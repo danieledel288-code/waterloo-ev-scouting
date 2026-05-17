@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}PIT WALL{% endblock %}
+{% block content %}
+
+<section class="page-head">
+  <div class="kicker">CH. 01 / LIVE TIMING</div>
+  <h1 class="page-title">PIT&nbsp;WALL</h1>
+  <div class="page-sub">REAL-TIME SCOUTING · 1 KM CIRCUIT · WATERLOO EV CHALLENGE</div>
+</section>
+
+<section class="our-strip">
+  <div class="strip-left">
+    <div class="microlabel">OUR CAR · GROUND SPEED</div>
+    <div class="our-readout">
+      <span id="our-speed" class="numera">--</span><span class="unit">KM/H</span>
+    </div>
+  </div>
+  <div class="strip-mid" aria-hidden="true">
+    <svg viewBox="0 0 600 80" preserveAspectRatio="none" class="wave">
+      <polyline id="our-wave" fill="none" stroke="currentColor" stroke-width="1.5" points=""/>
+    </svg>
+  </div>
+  <div class="strip-right">
+    <div class="microlabel">LINK</div>
+    <div class="link-row">
+      <span id="our-pip" class="pip pip-dead"></span>
+      <span id="our-state" class="state-text">OFFLINE</span>
+    </div>
+    <div class="microlabel">LAST PACKET</div>
+    <div id="our-age" class="mono-sm">NEVER</div>
+  </div>
+</section>
+
+<section class="board-wrap">
+  <header class="board-head">
+    <div>
+      <div class="microlabel">CLASSIFICATION</div>
+      <h2 class="section-title">LEADERBOARD</h2>
+    </div>
+    <div class="board-legend">
+      <span><i class="dot-best"></i> BEST LAP</span>
+      <span><i class="dot-lead"></i> LEADER</span>
+    </div>
+  </header>
+
+  <table id="board">
+    <thead>
+      <tr>
+        <th class="col-pos">P</th>
+        <th class="col-team">TEAM</th>
+        <th class="num">LAPS</th>
+        <th class="num">LAST</th>
+        <th class="num">LAST KM/H</th>
+        <th class="num">BEST</th>
+        <th class="num">AVG KM/H</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <div id="empty-state" class="empty hidden">
+    NO LAPS RECORDED YET · OPEN <a href="/scout">/SPOTTER</a> TO BEGIN
+  </div>
+</section>
+
+<script>
+const sock = io();
+let lastOurTs = 0;
+const speedHistory = [];   // last N speed samples for the sparkline
+
+sock.on('our_speed', d => {
+  const v = d.speed_kmh;
+  document.getElementById('our-speed').textContent = v.toFixed(1);
+  document.getElementById('our-pip').className = 'pip pip-live';
+  document.getElementById('our-state').textContent = 'LIVE';
+  lastOurTs = Date.now();
+  speedHistory.push(v);
+  while (speedHistory.length > 120) speedHistory.shift();
+  drawWave();
+});
+
+sock.on('lap_added', refresh);
+sock.on('lap_removed', refresh);
+
+setInterval(() => {
+  const el = document.getElementById('our-age');
+  if (!lastOurTs) { el.textContent = 'NEVER'; return; }
+  const age = (Date.now() - lastOurTs) / 1000;
+  el.textContent = age.toFixed(1) + 'S';
+  if (age > 3) {
+    document.getElementById('our-pip').className = 'pip pip-dead';
+    document.getElementById('our-state').textContent = 'STALE';
+  }
+}, 250);
+
+function drawWave() {
+  const w = 600, h = 80;
+  if (speedHistory.length < 2) return;
+  const max = Math.max(40, ...speedHistory);
+  const step = w / Math.max(speedHistory.length - 1, 1);
+  const pts = speedHistory.map((v, i) =>
+    `${(i * step).toFixed(1)},${(h - (v / max) * (h - 6) - 3).toFixed(1)}`
+  ).join(' ');
+  document.getElementById('our-wave').setAttribute('points', pts);
+}
+
+async function refresh() {
+  const teams = await fetch('/api/teams').then(r => r.json());
+  const tbody = document.querySelector('#board tbody');
+  const empty = document.getElementById('empty-state');
+  tbody.innerHTML = '';
+
+  const anyLaps = teams.some(t => t.lap_count > 0);
+  empty.classList.toggle('hidden', anyLaps || teams.length === 0);
+
+  // best lap across field
+  const fieldBest = Math.min(...teams.map(t => t.best_lap).filter(x => x != null));
+
+  teams.forEach((t, i) => {
+    const isLeader = i === 0 && t.lap_count > 0;
+    const isOurTeam = t.id === 1;
+    const tr = document.createElement('tr');
+    tr.className = [
+      isLeader ? 'is-leader' : '',
+      isOurTeam ? 'is-ours' : ''
+    ].join(' ').trim();
+    tr.style.setProperty('--team-color', t.color);
+
+    const bestCellCls = (t.best_lap != null && t.best_lap === fieldBest) ? 'num best' : 'num';
+
+    tr.innerHTML = `
+      <td class="col-pos"><span class="pos-box">${String(i + 1).padStart(2, '0')}</span></td>
+      <td class="col-team">
+        <span class="team-bar"></span>
+        <span class="team-name">${t.name}</span>
+        ${isOurTeam ? '<span class="tag-ours">OURS</span>' : ''}
+      </td>
+      <td class="num num-lg">${t.lap_count}</td>
+      <td class="num">${t.last_lap != null ? t.last_lap.toFixed(2) : '—'}</td>
+      <td class="num">${t.last_speed != null ? t.last_speed.toFixed(1) : '—'}</td>
+      <td class="${bestCellCls}">${t.best_lap != null ? t.best_lap.toFixed(2) : '—'}</td>
+      <td class="num">${t.avg_speed != null ? t.avg_speed.toFixed(1) : '—'}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+refresh();
+setInterval(refresh, 3000);
+</script>
+{% endblock %}

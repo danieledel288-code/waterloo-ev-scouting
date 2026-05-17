@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}SPOTTER{% endblock %}
+{% block content %}
+
+<section class="page-head">
+  <div class="kicker">CH. 01 / FIELD INPUT</div>
+  <h1 class="page-title">SPOTTER</h1>
+  <div class="page-sub">SELECT A CAR · TAP <b>LAP</b> ON EACH START/FINISH CROSSING</div>
+</section>
+
+<section id="picker">
+  <div class="microlabel section-rule">CARS ON CIRCUIT</div>
+  <div class="team-grid">
+    {% for t in teams %}
+      <button class="team-card" data-id="{{ t.id }}" data-name="{{ t.name }}" style="--c: {{ t.color }}">
+        <span class="team-stripe"></span>
+        <span class="team-card-num">{{ '%02d'|format(loop.index) }}</span>
+        <span class="team-card-name">{{ t.name }}</span>
+        <span class="team-card-cta">TRACK ›</span>
+      </button>
+    {% endfor %}
+  </div>
+
+  <details class="add-team">
+    <summary><span class="plus">+</span> REGISTER NEW CAR</summary>
+    <div class="add-row">
+      <input id="new-name" placeholder="CAR / TEAM NAME" autocomplete="off">
+      <input id="new-color" type="color" value="#faff00" title="Livery color">
+      <button id="add-team">ADD</button>
+    </div>
+  </details>
+</section>
+
+<section id="active" hidden>
+  <div class="active-head">
+    <div>
+      <div class="microlabel">NOW SCOUTING</div>
+      <h2 id="active-name" class="active-name"></h2>
+    </div>
+    <button id="back-btn" class="ghost-btn">← CHANGE CAR</button>
+  </div>
+
+  <button id="lap-btn" class="lap-btn" type="button">
+    <span class="lap-btn-label">LAP</span>
+    <span class="lap-btn-sub">TAP ON START/FINISH</span>
+    <span class="lap-btn-stripe" aria-hidden="true"></span>
+  </button>
+
+  <div class="active-stats">
+    <div class="stat">
+      <span class="microlabel">LAPS</span>
+      <span id="lap-count" class="stat-val numera">0</span>
+    </div>
+    <div class="stat">
+      <span class="microlabel">LAST LAP</span>
+      <span id="last-lap" class="stat-val mono">—</span>
+    </div>
+    <div class="stat">
+      <span class="microlabel">LAST KM/H</span>
+      <span id="last-speed" class="stat-val mono">—</span>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="undo-btn" class="ghost-btn warn">UNDO LAST LAP</button>
+  </div>
+
+  <ul id="lap-log" class="lap-log"></ul>
+</section>
+
+<script>
+const sock = io();
+let activeId = null;
+
+document.querySelectorAll('.team-card').forEach(b => {
+  b.addEventListener('click', () => selectTeam(parseInt(b.dataset.id), b.dataset.name));
+});
+
+function selectTeam(id, name) {
+  activeId = id;
+  document.getElementById('picker').hidden = true;
+  document.getElementById('active').hidden = false;
+  document.getElementById('active-name').textContent = name;
+  refreshActive();
+  refreshLog();
+}
+
+document.getElementById('lap-btn').addEventListener('click', async () => {
+  if (!activeId) return;
+  if (navigator.vibrate) navigator.vibrate(40);
+  const btn = document.getElementById('lap-btn');
+  btn.classList.remove('flash'); void btn.offsetWidth; btn.classList.add('flash');
+
+  const res = await fetch('/api/laps', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({team_id: activeId})
+  }).then(r => r.json());
+
+  document.getElementById('last-lap').textContent  = res.lap_time != null ? res.lap_time.toFixed(2) + 'S' : 'GO';
+  document.getElementById('last-speed').textContent = res.speed   != null ? res.speed.toFixed(1)        : '—';
+  refreshActive();
+  refreshLog();
+});
+
+document.getElementById('undo-btn').addEventListener('click', async () => {
+  if (!activeId) return;
+  if (!confirm('Undo the last lap for this car?')) return;
+  await fetch('/api/laps/' + activeId + '/undo', {method: 'POST'});
+  refreshActive();
+  refreshLog();
+});
+
+document.getElementById('back-btn').addEventListener('click', () => {
+  activeId = null;
+  document.getElementById('picker').hidden = false;
+  document.getElementById('active').hidden = true;
+});
+
+async function refreshActive() {
+  if (!activeId) return;
+  const teams = await fetch('/api/teams').then(r => r.json());
+  const t = teams.find(x => x.id === activeId);
+  if (t) document.getElementById('lap-count').textContent = String(t.lap_count).padStart(2, '0');
+}
+
+async function refreshLog() {
+  if (!activeId) return;
+  const laps = await fetch('/api/laps/' + activeId).then(r => r.json());
+  const ul = document.getElementById('lap-log');
+  ul.innerHTML = '';
+  // newest first; skip the very first "start" entry that has no time
+  const real = laps.filter(l => l.lap_time_sec != null);
+  const best = real.length ? Math.min(...real.map(l => l.lap_time_sec)) : null;
+  [...real].reverse().forEach((l, i) => {
+    const li = document.createElement('li');
+    const n = real.length - i;
+    const isBest = l.lap_time_sec === best;
+    li.className = isBest ? 'best' : '';
+    li.innerHTML = `
+      <span class="log-n">L${String(n).padStart(2, '0')}</span>
+      <span class="log-t">${l.lap_time_sec.toFixed(2)}<small>S</small></span>
+      <span class="log-v">${l.speed_kmh.toFixed(1)}<small>KM/H</small></span>
+      ${isBest ? '<span class="log-tag">BEST</span>' : ''}
+    `;
+    ul.appendChild(li);
+  });
+}
+
+document.getElementById('add-team').addEventListener('click', async () => {
+  const name = document.getElementById('new-name').value.trim();
+  if (!name) return;
+  const color = document.getElementById('new-color').value;
+  const res = await fetch('/api/teams', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name, color})
+  });
+  if (!res.ok) { const e = await res.json(); alert(e.error || 'failed'); return; }
+  location.reload();
+});
+</script>
+{% endblock %}
