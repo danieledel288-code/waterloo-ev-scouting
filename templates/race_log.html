@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% block title %}RACE LOG{% endblock %}
+{% block content %}
+
+<section class="page-head">
+  <div class="kicker">CH. 01 / LIVE LORA TELEMETRY</div>
+  <h1 class="page-title">RACE&nbsp;LOG</h1>
+  <div class="page-sub">CAR <b>{{ OUR_TEAM_NAME }}</b> · LORA = LIVE · PI CSV = HIGH-DETAIL BACKUP</div>
+</section>
+
+<!-- ===== LIVE STATUS STRIP ===== -->
+<section class="rl-strip" id="rl-strip">
+  <div class="rl-strip-bar" id="rl-bar"></div>
+  <div class="rl-strip-row">
+    <div class="rl-status">
+      <span class="rl-status-badge" id="rl-status-badge">IDLE</span>
+      <span class="rl-mode-badge" id="rl-mode-badge"></span>
+    </div>
+
+    <div class="rl-stat rl-stat-big">
+      <div class="microlabel">SPEED</div>
+      <div><span id="rl-kph" class="numera">--</span><span class="unit">KM/H</span></div>
+    </div>
+    <div class="rl-stat">
+      <div class="microlabel">GPS</div>
+      <div class="tile-val mono"><span id="rl-gps-kph">--</span> <small>KM/H</small></div>
+    </div>
+    <div class="rl-stat">
+      <div class="microlabel">BUS V</div>
+      <div class="rl-bus-row">
+        <span class="tile-val mono" id="rl-bus-v">--</span>
+        <svg class="rl-spark" id="rl-bus-spark" viewBox="0 0 72 22" preserveAspectRatio="none"></svg>
+      </div>
+    </div>
+    <div class="rl-stat">
+      <div class="microlabel">SUPPLY A</div>
+      <div class="tile-val mono" id="rl-supply-a">--</div>
+    </div>
+    <div class="rl-stat">
+      <div class="microlabel">TEMP</div>
+      <div class="tile-val mono"><span id="rl-temp-c">--</span> <small>°C</small></div>
+    </div>
+
+    <div class="rl-health">
+      <span class="rl-chip rl-chip-mut" id="rl-esc-chip">ESC —</span>
+      <span class="rl-chip rl-chip-mut" id="rl-gps-chip">GPS —</span>
+    </div>
+
+    <div class="rl-fault" id="rl-fault-chip-wrap">
+      <span class="rl-chip rl-chip-mut" id="rl-fault-chip">NO FAULTS</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CONNECTION + CSV IMPORT ROW ===== -->
+<section class="rl-grid-2">
+  <div class="rl-card">
+    <div class="rl-card-head">
+      <h2 class="section-title">CONNECTION</h2>
+      <span class="rl-chip rl-chip-mut" id="rl-conn-chip">IDLE</span>
+    </div>
+    <div class="rl-actions">
+      <button class="rl-btn rl-btn-primary" id="rl-btn-connect">CONNECT LORA</button>
+      <button class="rl-btn" id="rl-btn-disconnect" disabled>DISCONNECT</button>
+      <button class="rl-btn" id="rl-btn-mock">START MOCK</button>
+      <button class="rl-btn rl-btn-ghost" id="rl-btn-clear">CLEAR RUN</button>
+      <button class="rl-btn rl-btn-ghost" id="rl-btn-export-json" disabled>EXPORT JSON</button>
+      <button class="rl-btn rl-btn-ghost" id="rl-btn-export-csv" disabled>EXPORT CSV</button>
+    </div>
+    <div class="rl-banner rl-banner-amber hidden" id="rl-noserial-banner">
+      WEB SERIAL UNAVAILABLE — USE CHROME OR EDGE FOR LIVE LORA. MOCK STREAM AND CSV IMPORT STILL WORK.
+    </div>
+    <div class="rl-banner rl-banner-red hidden" id="rl-linklost-banner">
+      LORA LINK DROPPED AFTER RECEIVING DATA — CHECK THE PIT-SIDE USB RECEIVER. CLICK CONNECT LORA TO REATTACH.
+    </div>
+    <div class="rl-conn-stats">
+      <div><span class="microlabel">PACKETS</span><span class="rl-stat-val" id="rl-packets">0</span></div>
+      <div><span class="microlabel">PARSE ERR</span><span class="rl-stat-val" id="rl-parse-err">0</span></div>
+      <div><span class="microlabel">MISSED SEQ</span><span class="rl-stat-val" id="rl-missed-seq">0</span></div>
+      <div><span class="microlabel">LAST PKT</span><span class="rl-stat-val" id="rl-last-pkt">—s ago</span></div>
+      <div><span class="microlabel">RUN ID</span><span class="rl-stat-val mono-sm" id="rl-run-id">—</span></div>
+      <div><span class="microlabel">SOURCE</span><span class="rl-stat-val" id="rl-source">IDLE</span></div>
+    </div>
+  </div>
+
+  <div class="rl-card">
+    <div class="rl-card-head">
+      <h2 class="section-title">PI CSV BACKUP</h2>
+      <span class="rl-chip rl-chip-mut" id="rl-csv-chip">NO FILE</span>
+    </div>
+    <div class="rl-actions">
+      <input type="file" id="rl-csv-file" accept=".csv,text/csv" hidden>
+      <button class="rl-btn rl-btn-primary" id="rl-btn-csv-choose">CHOOSE CSV…</button>
+      <button class="rl-btn rl-btn-ghost hidden" id="rl-btn-csv-clear">CLEAR</button>
+    </div>
+    <p class="rl-help" id="rl-csv-help">
+      UPLOAD <span class="mono">race-YYYYMMDD-HHMMSS.csv</span> FROM THE PI TO LOAD DETAILED TELEMETRY.
+    </p>
+    <div class="rl-help rl-help-dim">
+      EXPECTED COLUMNS: ts, kph, gps_kph, gps, sats, mode, drive_seen, thr_pct, brk_pct,
+      regen_pct, pwr_pct, vcmd, thr_v, brk_v, bus_v, supply_a, stator_a, temp_c, rps_avg,
+      pro, foc, faults.
+    </div>
+  </div>
+</section>
+
+<!-- ===== LIVE TIMELINE CHART ===== -->
+<section class="rl-card">
+  <div class="rl-card-head">
+    <div>
+      <div class="microlabel">LIVE TRACE</div>
+      <h2 class="section-title">TIMELINE</h2>
+    </div>
+    <div class="rl-toggles" id="rl-toggles"></div>
+  </div>
+  <div class="rl-chart-wrap">
+    <svg id="rl-chart" viewBox="0 0 1000 280" preserveAspectRatio="none"></svg>
+    <div class="rl-chart-empty" id="rl-chart-empty">NO SAMPLES YET — CONNECT A LORA RECEIVER OR START THE MOCK STREAM.</div>
+  </div>
+  <div class="rl-chart-axis" id="rl-chart-axis"></div>
+</section>
+
+<!-- ===== RUN SUMMARY + EVENT LOG ===== -->
+<section class="rl-grid-2-3">
+  <div class="rl-card">
+    <div class="rl-card-head">
+      <div>
+        <div class="microlabel">AGGREGATE</div>
+        <h2 class="section-title">RUN SUMMARY</h2>
+      </div>
+    </div>
+    <div class="rl-summary-grid" id="rl-summary"></div>
+  </div>
+
+  <div class="rl-card">
+    <div class="rl-card-head">
+      <h2 class="section-title">EVENT LOG</h2>
+      <div class="rl-filter-row" id="rl-filters">
+        <button data-filter="all" class="rl-pill rl-pill-on">ALL</button>
+        <button data-filter="samples" class="rl-pill">SAMPLES</button>
+        <button data-filter="faults" class="rl-pill">FAULTS</button>
+        <button data-filter="markers" class="rl-pill">MARKERS</button>
+        <button data-filter="parse_errors" class="rl-pill">PARSE ERR</button>
+      </div>
+    </div>
+    <div class="rl-log-wrap">
+      <table class="rl-log">
+        <thead><tr>
+          <th>TIME</th><th>TYPE</th><th>SEQ</th><th>MODE</th>
+          <th class="num">KPH</th><th class="num">BUS V</th>
+          <th class="num">A</th><th class="num">°C</th><th>DETAIL</th>
+        </tr></thead>
+        <tbody id="rl-log-body"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ===== DRIVETRAIN PANEL ===== -->
+<section class="rl-card" id="rl-drivetrain-card">
+  <div class="rl-card-head">
+    <div>
+      <div class="microlabel">DRIVETRAIN · 2× KRAKEN X60</div>
+      <h2 class="section-title">PER-MOTOR</h2>
+    </div>
+    <span class="rl-chip rl-chip-mut" id="rl-drivetrain-chip">AWAITING PER-MOTOR LOGS</span>
+  </div>
+  <div id="rl-drivetrain-empty" class="rl-help">
+    THE DEPLOYED PI PACKET DOES NOT INCLUDE PER-MOTOR (<span class="mono">m1_* / m2_*</span>) TELEMETRY YET.
+    AGGREGATED WHEEL SIGNALS (KPH, BUS V, SUPPLY A, TEMP) ARE VISIBLE IN THE STRIP ABOVE.
+  </div>
+  <div id="rl-drivetrain-live" class="hidden">
+    <div class="rl-motor-grid">
+      <div class="rl-motor" id="rl-motor-1">
+        <div class="rl-motor-head">
+          <span class="microlabel">MOTOR 1</span>
+          <span class="rl-chip rl-chip-mut" id="rl-m1-foc">—</span>
+        </div>
+        <div class="rl-motor-cells">
+          <div><span class="microlabel">STATOR</span><span class="tile-val mono"><span id="rl-m1-a">--</span> <small>A</small></span></div>
+          <div><span class="microlabel">TORQUE</span><span class="tile-val mono"><span id="rl-m1-t">--</span> <small>A</small></span></div>
+          <div><span class="microlabel">APPLIED</span><span class="tile-val mono"><span id="rl-m1-v">--</span> <small>V</small></span></div>
+          <div><span class="microlabel">TEMP</span><span class="tile-val mono"><span id="rl-m1-c">--</span> <small>°C</small></span></div>
+        </div>
+      </div>
+      <div class="rl-motor" id="rl-motor-2">
+        <div class="rl-motor-head">
+          <span class="microlabel">MOTOR 2</span>
+          <span class="rl-chip rl-chip-mut" id="rl-m2-foc">—</span>
+        </div>
+        <div class="rl-motor-cells">
+          <div><span class="microlabel">STATOR</span><span class="tile-val mono"><span id="rl-m2-a">--</span> <small>A</small></span></div>
+          <div><span class="microlabel">TORQUE</span><span class="tile-val mono"><span id="rl-m2-t">--</span> <small>A</small></span></div>
+          <div><span class="microlabel">APPLIED</span><span class="tile-val mono"><span id="rl-m2-v">--</span> <small>V</small></span></div>
+          <div><span class="microlabel">TEMP</span><span class="tile-val mono"><span id="rl-m2-c">--</span> <small>°C</small></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="rl-motor-balance">
+      <div class="rl-balance-head">
+        <span class="microlabel">MOTOR BALANCE (M1 ↔ M2)</span>
+        <span class="rl-balance-delta" id="rl-balance-delta">Δ — A</span>
+      </div>
+      <div class="rl-balance-bar"><div class="rl-balance-fill" id="rl-balance-fill"></div></div>
+      <div class="rl-help" id="rl-balance-msg">Balanced — both motors sharing load.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== REPLAY ===== -->
+<section class="rl-card">
+  <div class="rl-card-head">
+    <div>
+      <div class="microlabel">CSV → LORA PARSER</div>
+      <h2 class="section-title">REPLAY</h2>
+    </div>
+    <span class="rl-chip rl-chip-mut" id="rl-replay-chip">IDLE</span>
+  </div>
+  <div class="rl-actions">
+    <input type="file" id="rl-replay-file" accept=".csv,text/csv" hidden>
+    <button class="rl-btn" id="rl-btn-replay-choose">CHOOSE CSV…</button>
+    <div class="rl-speed-group" id="rl-speed-group">
+      <button class="rl-pill" data-speed="1">1×</button>
+      <button class="rl-pill" data-speed="5">5×</button>
+      <button class="rl-pill rl-pill-on" data-speed="10">10×</button>
+      <button class="rl-pill" data-speed="30">30×</button>
+    </div>
+    <button class="rl-btn rl-btn-primary" id="rl-btn-replay-start" disabled>START REPLAY</button>
+    <button class="rl-btn rl-btn-warn hidden" id="rl-btn-replay-stop">STOP REPLAY</button>
+  </div>
+  <p class="rl-help" id="rl-replay-help">
+    LOAD ANY <span class="mono">race-*.csv</span> TO REHEARSE THE LIVE DASHBOARD. STATUS STRIP WILL BADGE REPLAY SO YOU DON'T MISTAKE IT FOR THE LIVE CAR.
+  </p>
+</section>
+
+<script type="module" src="/static/race-log/race-log.js"></script>
+{% endblock %}
