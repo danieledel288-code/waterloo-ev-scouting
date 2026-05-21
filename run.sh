@@ -47,6 +47,7 @@ cat <<EOF
 ║    /            PIT WALL    (laptop big-screen)                    ║
 ║    /scout       SPOTTER     (phones)                               ║
 ║    /race-log    RACE LOG    (LoRa USB, Chrome only)                ║
+║    /race-testing TEST LAB    (battery / current-limit analysis)    ║
 ║    /self        DRIVER      (in-car phone)                         ║
 ║                                                                    ║
 ║  Stop with Ctrl-C. Reset DB: rm scouting.db, restart.              ║

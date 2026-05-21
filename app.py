@@ -85,6 +85,13 @@ def race_log():
     return render_template('race_log.html')
 
 
+@app.route('/race-testing')
+def race_testing():
+    """Current-limit and battery test lab. Offline CSV comparison only: no motor
+    commands are sent from this page."""
+    return render_template('race_testing.html')
+
+
 @app.route('/api/teams', methods=['GET', 'POST'])
 def teams_api():
     conn = db()
@@ -190,5 +197,6 @@ if __name__ == '__main__':
     print(f'  Scout:      http://<your-laptop-ip>:5000/scout')
     print(f'  Our speed:  http://<your-laptop-ip>:5000/self')
     print(f'  Race log:   http://<your-laptop-ip>:5000/race-log  (LoRa pit-side, Chrome only)\n')
+    print(f'  Test lab:   http://<your-laptop-ip>:5000/race-testing  (CSV battery/current-limit analysis)\n')
     port = int(os.environ.get('PORT', 5000))
     socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)

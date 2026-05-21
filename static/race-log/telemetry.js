@@ -5,7 +5,8 @@
 // Sample shape (after normalisation, all fields optional except ts & time_s):
 //   { time_s, ts, kph, gps_kph, mode, thr_pct, brk_pct, regen_pct, pwr_pct,
 //     vcmd, brake_torque_a, brake_control, bus_v, supply_a, stator_a, temp_c,
-//     rps_avg, gps, sats, foc, seen, warn, faults: [...], seq, run, raw,
+//     rps_avg, wh, wh_used, wh_recovered, net_wh, distance_km, wh_per_km,
+//     gps, sats, foc, seen, warn, faults: [...], seq, run, raw,
 //     // per-motor (Kraken X60 × 2):
 //     kph_cmd, err_kph, m1_a, m1_t, m1_v, m1_c, m1_foc, m2_a, m2_t, m2_v, m2_c, m2_foc }
 
@@ -92,6 +93,8 @@ export function parseLoraLine(line) {
     regen_pct: num(parsed.regen_pct) ?? num(parsed.regen),
     pwr_pct: num(parsed.pwr_pct) ?? num(parsed.pwr),
     vcmd: num(parsed.vcmd) ?? num(parsed.cmdV),
+    torque_cmd_a: num(parsed.torque_cmd_a) ?? num(parsed.torqueA),
+    control_mode: typeof parsed.control_mode === 'string' ? parsed.control_mode : (typeof parsed.control === 'string' ? parsed.control : undefined),
     brake_torque_a: num(parsed.brake_torque_a) ?? num(parsed.brakeTorqueA),
     brake_control: typeof parsed.brake_control === 'string' ? parsed.brake_control : undefined,
     bus_v: num(parsed.bus_v) ?? num(parsed.busV),
@@ -99,6 +102,12 @@ export function parseLoraLine(line) {
     stator_a: num(parsed.stator_a),
     temp_c: num(parsed.temp_c) ?? num(parsed.tempC),
     rps_avg: num(parsed.rps_avg) ?? num(parsed.rps),
+    wh: num(parsed.wh),
+    wh_used: num(parsed.wh_used) ?? num(parsed.whUsed),
+    wh_recovered: num(parsed.wh_recovered) ?? num(parsed.whRegen),
+    net_wh: num(parsed.net_wh) ?? num(parsed.wh),
+    distance_km: num(parsed.distance_km) ?? num(parsed.km),
+    wh_per_km: num(parsed.wh_per_km) ?? num(parsed.whPerKm),
     gps: num(parsed.gps),
     sats: num(parsed.sats),
     foc: num(parsed.foc),
@@ -144,11 +153,19 @@ export function parseCsvRow(row, idx) {
     regen_pct: num(row.regen_pct),
     pwr_pct: num(row.pwr_pct),
     vcmd: num(row.vcmd),
+    torque_cmd_a: num(row.torque_cmd_a),
+    control_mode: row.control_mode || undefined,
     bus_v: num(row.bus_v),
     supply_a: num(row.supply_a),
     stator_a: num(row.stator_a),
     temp_c: num(row.temp_c),
     rps_avg: num(row.rps_avg),
+    wh: num(row.wh),
+    wh_used: num(row.wh_used),
+    wh_recovered: num(row.wh_recovered),
+    net_wh: num(row.net_wh),
+    distance_km: num(row.distance_km),
+    wh_per_km: num(row.wh_per_km),
     gps: num(row.gps),
     sats: num(row.sats),
     foc: num(row.foc),
@@ -205,6 +222,7 @@ export function rebaseTimes(samples) {
 export function computeSummary(samples) {
   let topKph = 0, topGpsKph = 0, maxSupplyA = 0, maxStatorA = 0;
   let minBusV = null, maxTempC = 0;
+  let netWh = 0, whPerKm = 0, distanceKm = 0;
   let movingSum = 0, movingCount = 0;
   const modeMs = {};
   const faultSet = new Set();
@@ -218,6 +236,10 @@ export function computeSummary(samples) {
     if (s.stator_a !== undefined) maxStatorA = Math.max(maxStatorA, s.stator_a);
     if (s.bus_v !== undefined) minBusV = minBusV === null ? s.bus_v : Math.min(minBusV, s.bus_v);
     if (s.temp_c !== undefined) maxTempC = Math.max(maxTempC, s.temp_c);
+    if (s.net_wh !== undefined) netWh = s.net_wh;
+    else if (s.wh !== undefined) netWh = s.wh;
+    if (s.wh_per_km !== undefined) whPerKm = s.wh_per_km;
+    if (s.distance_km !== undefined) distanceKm = s.distance_km;
     if (s.kph !== undefined && s.kph > 1) { movingSum += s.kph; movingCount += 1; }
     if (s.faults && s.faults.length > 0) {
       faultCount += s.faults.length;
@@ -242,6 +264,7 @@ export function computeSummary(samples) {
     sampleCount: samples.length, durationS,
     topKph, topGpsKph, avgMovingKph, estLap1kmS,
     maxSupplyA, maxStatorA, minBusV, maxTempC,
+    netWh, whPerKm, distanceKm,
     modeMs, faultCount, uniqueFaults: Array.from(faultSet),
     missedSeq,
   };
@@ -250,8 +273,9 @@ export function computeSummary(samples) {
 /** Pi-logger column order — exact match for race_logger.py CSV output. */
 export const PI_CSV_COLUMNS = [
   'ts','kph','gps_kph','gps','sats','mode','drive_seen','thr_pct','brk_pct',
-  'regen_pct','pwr_pct','vcmd','thr_v','brk_v','bus_v','supply_a','stator_a',
-  'temp_c','rps_avg','pro','foc','faults',
+  'regen_pct','pwr_pct','vcmd','torque_cmd_a','control_mode','thr_v','brk_v','bus_v','supply_a','stator_a',
+  'temp_c','rps_avg','pro','foc','regen_enabled','wh_used','wh_recovered',
+  'net_wh','distance_km','wh_per_km','faults',
 ];
 
 const csvEscape = (v) => {
@@ -267,10 +291,17 @@ export function samplesToCsv(samples) {
       s.ts ?? '', s.kph ?? '', s.gps_kph ?? '', s.gps ?? '', s.sats ?? '',
       s.mode ?? '', s.seen ?? '',
       s.thr_pct ?? '', s.brk_pct ?? '', s.regen_pct ?? '', s.pwr_pct ?? '', s.vcmd ?? '',
+      s.torque_cmd_a ?? '', s.control_mode ?? '',
       '', '',  // thr_v, brk_v — not in LoRa packets
       s.bus_v ?? '', s.supply_a ?? '', s.stator_a ?? '', s.temp_c ?? '', s.rps_avg ?? '',
       s.seen ?? '',  // pro mirrors drive_seen
       s.foc ?? '',
+      '',
+      s.wh_used ?? '',
+      s.wh_recovered ?? '',
+      s.net_wh ?? s.wh ?? '',
+      s.distance_km ?? '',
+      s.wh_per_km ?? '',
       (s.faults && s.faults.length > 0) ? s.faults.join(';') : '',
     ].map(csvEscape).join(','));
   }
@@ -282,7 +313,10 @@ export function sampleToLoraLine(s) {
   const pkt = {
     kph: s.kph, gps_kph: s.gps_kph, mph: s.kph, unit: 'KPH',
     mode: s.mode, pwr: s.pwr_pct, regen: s.regen_pct, thr: s.thr_pct, brk: s.brk_pct,
-    cmdV: s.vcmd, tempC: s.temp_c, busV: s.bus_v, amps: s.supply_a, rps: s.rps_avg,
+    cmdV: s.vcmd, torqueA: s.torque_cmd_a, control: s.control_mode,
+    tempC: s.temp_c, busV: s.bus_v, amps: s.supply_a, rps: s.rps_avg,
+    wh: s.net_wh ?? s.wh, whUsed: s.wh_used, whRegen: s.wh_recovered,
+    km: s.distance_km, whPerKm: s.wh_per_km,
     seen: s.seen, faults: s.faults ?? [], gps: s.gps, sats: s.sats,
     warn: s.warn, foc: s.foc, ts: s.ts,
   };

@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}TEST LAB{% endblock %}
+{% block content %}
+
+<section class="page-head tl-page-head fx-rise-in">
+  <div class="tl-head-kicker-row">
+    <span class="kicker">CH. 02 / CURRENT LIMIT TESTING</span>
+    <span class="tl-mission-chip">MISSION 02</span>
+  </div>
+  <h1 class="page-title">TEST&nbsp;LAB</h1>
+  <div class="page-sub">COMPARE <b>SLA</b> VS <b>MTX</b> · SUPPLY / STATOR LIMITS · SPEED / SAG / WH/KM</div>
+</section>
+
+<section class="tl-race-strip" aria-label="Race test status">
+  <div class="tl-strip-tile tl-strip-active fx-rise-in fx-hover-lift">
+    <span class="microlabel">CURRENT TARGET</span>
+    <strong>MTX VALIDATION</strong>
+    <small>35/80 first · then decide from data</small>
+    <div class="tl-strip-bar"></div>
+  </div>
+  <div class="tl-strip-tile fx-rise-in fx-hover-lift">
+    <span class="microlabel">GOOD RUN</span>
+    <strong>&lt; 9.5V = NO</strong>
+    <small>watch sag, temp, and faults</small>
+  </div>
+  <div class="tl-strip-tile fx-rise-in fx-hover-lift">
+    <span class="microlabel">CONTROL</span>
+    <strong>PRO TORQUE</strong>
+    <small>TorqueCurrentFOC logs supported</small>
+  </div>
+</section>
+
+<div class="tl-section-divider" aria-hidden="true"></div>
+
+<section class="tl-grid fx-rise-in">
+  <div class="tl-card">
+    <div class="tl-card-head">
+      <h2 class="section-title">ADD RUN</h2>
+      <span class="tl-chip">CSV ONLY</span>
+    </div>
+    <div class="tl-form">
+      <label>
+        <span>Battery</span>
+        <select id="tl-battery">
+          <option value="SLA">SLA / FRC MK</option>
+          <option value="MTX">MTX-35</option>
+        </select>
+      </label>
+      <label>
+        <span>Supply limit A</span>
+        <input id="tl-supply" type="number" min="0" step="1" value="35">
+      </label>
+      <label>
+        <span>Stator limit A</span>
+        <input id="tl-stator" type="number" min="0" step="1" value="80">
+      </label>
+      <label>
+        <span>Run label</span>
+        <input id="tl-label" type="text" placeholder="MTX 35/80 validation">
+      </label>
+      <input id="tl-file" type="file" accept=".csv,text/csv" multiple hidden>
+      <button class="tl-btn tl-btn-primary" id="tl-choose">IMPORT CSV RUNS</button>
+      <button class="tl-btn" id="tl-seed">LOAD REAL SLA TESTS</button>
+      <button class="tl-btn" id="tl-clear">CLEAR SAVED RUNS</button>
+    </div>
+    <div class="tl-import-state" id="tl-import-state">READY FOR CSV IMPORT</div>
+    <p class="tl-help">
+      This page never talks to the car. It only compares CSV logs. Tag each imported run with the battery and limits used for that test.
+    </p>
+  </div>
+
+  <div class="tl-card">
+    <div class="tl-card-head">
+      <h2 class="section-title">FILTERS</h2>
+      <span class="tl-chip" id="tl-count">0 RUNS</span>
+    </div>
+    <div class="tl-filters">
+      <button class="tl-pill tl-pill-on" data-battery="ALL">ALL</button>
+      <button class="tl-pill" data-battery="SLA">SLA</button>
+      <button class="tl-pill" data-battery="MTX">MTX-35</button>
+    </div>
+    <div class="tl-legend">
+      <span><i class="tl-dot tl-dot-sla"></i>SLA</span>
+      <span><i class="tl-dot tl-dot-mtx"></i>MTX-35</span>
+      <span><i class="tl-ring"></i>warning</span>
+    </div>
+    <p class="tl-help">Goal: choose the limit set with the best speed and lowest Wh/km without ugly bus sag, heat, or fault spam.</p>
+  </div>
+</section>
+
+<section class="tl-card">
+  <div class="tl-card-head">
+    <div>
+      <div class="microlabel">LIMIT COMPARISON</div>
+      <h2 class="section-title">RESULTS</h2>
+    </div>
+    <button class="tl-btn" id="tl-export">EXPORT SUMMARY CSV</button>
+  </div>
+  <div class="tl-recommend fx-rise-in" id="tl-recommend"></div>
+  <div class="tl-summary" id="tl-summary"></div>
+  <div class="tl-chart-wrap">
+    <svg id="tl-chart" viewBox="0 0 1000 320" preserveAspectRatio="none">
+      <defs>
+        <filter id="tl-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="tl-glow-strong" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="6" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+    </svg>
+    <div class="tl-chart-tip" id="tl-chart-tip"></div>
+    <div class="tl-empty" id="tl-empty">IMPORT CSV RUNS TO START COMPARING CURRENT LIMITS.</div>
+  </div>
+  <div class="tl-axis">
+    <span>← lower Wh/km is better</span>
+    <span>higher avg kph is better →</span>
+  </div>
+</section>
+
+<div class="tl-section-divider" aria-hidden="true"></div>
+
+<section class="tl-card">
+  <div class="tl-card-head">
+    <div>
+      <div class="microlabel">RUN TRACE</div>
+      <h2 class="section-title">WHAT HAPPENED</h2>
+    </div>
+    <select class="tl-select" id="tl-trace-select" aria-label="Select run trace"></select>
+  </div>
+  <div class="tl-trace-stats" id="tl-trace-stats"></div>
+  <div class="tl-trace-wrap">
+    <svg id="tl-trace" viewBox="0 0 1000 420" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="tl-kph-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#faff00" stop-opacity="0.30"/>
+          <stop offset="100%" stop-color="#faff00" stop-opacity="0"/>
+        </linearGradient>
+        <filter id="tl-tr-glow"><feGaussianBlur stdDeviation="3"/></filter>
+      </defs>
+    </svg>
+    <div class="tl-trace-readout" id="tl-trace-readout"></div>
+    <div class="tl-empty" id="tl-trace-empty">IMPORT A CSV RUN TO SEE SPEED, VOLTAGE, AND CURRENT OVER TIME.</div>
+  </div>
+  <div class="tl-trace-legend">
+    <span><i class="tl-line-key tl-line-speed"></i>speed kph</span>
+    <span><i class="tl-line-key tl-line-bus"></i>bus voltage</span>
+    <span><i class="tl-line-key tl-line-current"></i>supply current</span>
+  </div>
+</section>
+
+<div class="tl-section-divider" aria-hidden="true"></div>
+
+<section class="tl-card fx-hover-lift">
+  <div class="tl-card-head">
+    <div>
+      <div class="microlabel">EFFICIENCY RANKED</div>
+      <h2 class="section-title">RACE LOG</h2>
+    </div>
+    <span class="tl-chip" id="tl-rank-count">P—</span>
+  </div>
+  <div class="tl-table-wrap">
+    <table class="tl-table">
+      <thead>
+        <tr>
+          <th class="tl-col-pos">POS</th>
+          <th>Run</th>
+          <th>Battery</th>
+          <th>Limits</th>
+          <th>Top kph</th>
+          <th>Avg kph</th>
+          <th>Wh/km</th>
+          <th>Min bus</th>
+          <th>Max A</th>
+          <th>Temp</th>
+          <th>Faults</th>
+          <th>Trace</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tl-body"></tbody>
+    </table>
+  </div>
+  <div class="tl-run-cards" id="tl-run-cards"></div>
+</section>
+
+<script type="module" src="/static/race-testing/testing.js"></script>
+{% endblock %}
