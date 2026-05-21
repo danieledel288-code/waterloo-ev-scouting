@@ -2,6 +2,8 @@
 
 Local-network scouting app for the Waterloo EV Challenge (Team 839). Scouts on phones tap a button each time a team crosses start/finish; the server computes lap time and average speed (700 m track length, 50-lap target over the 70 min event). Our Pi pushes live ground speed over WebSocket.
 
+**Race-day setup:** see [`RACE_DAY.md`](RACE_DAY.md) for the one-script boot. TL;DR — `./run.sh` (mac/linux) or `run.bat` (windows), then point phones at the LAN URL the banner prints.
+
 ## On the laptop (server)
 
 ```powershell
