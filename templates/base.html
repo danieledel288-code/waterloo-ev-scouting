@@ -24,6 +24,8 @@
     <nav class="tabs">
       <a href="/" data-route="dashboard"><span class="dot"></span>PIT WALL</a>
       <a href="/scout" data-route="scout"><span class="dot"></span>SPOTTER</a>
+      <a href="/race-log" data-route="race-log"><span class="dot"></span>RACE LOG</a>
+      <a href="/race-testing" data-route="race-testing"><span class="dot"></span>TEST LAB</a>
       <a href="/self" data-route="self"><span class="dot"></span>DRIVER</a>
     </nav>
     <div class="clock">
@@ -59,7 +61,7 @@
     // Mark active tab.
     (function () {
       const p = location.pathname;
-      const route = p === '/' ? 'dashboard' : p === '/scout' ? 'scout' : p === '/self' ? 'self' : '';
+      const route = p === '/' ? 'dashboard' : p === '/scout' ? 'scout' : p === '/self' ? 'self' : p === '/race-log' ? 'race-log' : p === '/race-testing' ? 'race-testing' : '';
       document.querySelectorAll('.tabs a').forEach(a => {
         if (a.dataset.route === route) a.classList.add('on');
       });

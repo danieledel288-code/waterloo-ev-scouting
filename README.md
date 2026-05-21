@@ -2,6 +2,8 @@
 
 Local-network scouting app for the Waterloo EV Challenge (Team 839). Scouts on phones tap a button each time a team crosses start/finish; the server computes lap time and average speed (700 m track length, 50-lap target over the 70 min event). Our Pi pushes live ground speed over WebSocket.
 
+**Race-day setup:** see [`RACE_DAY.md`](RACE_DAY.md) for the one-script boot. TL;DR — `./run.sh` (mac/linux) or `run.bat` (windows), then point phones at the LAN URL the banner prints.
+
 ## On the laptop (server)
 
 ```powershell
@@ -39,6 +41,35 @@ Run:
 python pi_client.py
 ```
 
+## Race log (LoRa live telemetry)
+
+The `/race-log` page is a pit-side live dashboard for the LoRa receiver. It reads
+newline-delimited JSON packets directly from a USB LoRa receiver via the browser's
+**Web Serial API** (Chrome / Edge only — Safari has no Web Serial).
+
+Open from the laptop:
+```
+http://<laptop-ip>:5000/race-log
+```
+
+What it does:
+- **Live LoRa** — connect a USB LoRa receiver and see speed / bus V / supply A /
+  temp / faults / ESC heartbeat / GPS lock at the cadence the Pi sends them (2 Hz).
+- **Mock stream** — run the page without any hardware. Yellow `RUNNING (MOCK)` badge
+  so you never confuse it with the live car.
+- **Pi CSV import** — drop in `/home/pi/race_logs/race-*.csv` for the high-detail
+  backup view + Live-vs-Backup comparison.
+- **Replay** — load a saved Pi CSV and stream it back through the same parser at
+  1× / 5× / 10× / 30×. Blue `REPLAY` badge.
+- **Export JSON or CSV** — saved logs in the Pi-logger CSV column order, so existing
+  Pi-side tooling can ingest both.
+- **Race-day badges** — `LINK LOST` when the USB drops mid-race, `ESC SEEN/NOT SEEN`
+  from the Pi's `drive_seen` field (distinguishes "battery emergency" from "motor
+  not powered"), `PI WARN` mirror for the Pi's own warn flag, bus-V sparkline.
+
+No server-side state — the page is fully client-side. Web Serial means the LoRa
+receiver plugs into the laptop running the server, not the Pi.
+
 ## Scout workflow
 
 1. Open `/scout` on the phone.
@@ -56,7 +87,8 @@ One scout per team is the easiest setup. Multiple phones can scout different tea
 | `app.py` | Flask + SocketIO server, all API routes |
 | `schema.sql` | SQLite tables (teams, laps) |
 | `templates/` | Dashboard, scout, self-telemetry pages |
-| `static/style.css` | Dark theme, big tap targets for phones |
+| `static/style.css` | Dark theme, big tap targets for phones, race-log telemetry blocks |
+| `static/race-log/` | Vanilla-JS modules for the LoRa page (parser, Web Serial, mock, replay) |
 | `pi_client.py` | Runs on Pi, pushes speed via WebSocket |
 | `scouting.db` | Auto-created on first run |
 

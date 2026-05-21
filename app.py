@@ -77,6 +77,21 @@ def self_view():
     return render_template('self.html')
 
 
+@app.route('/race-log')
+def race_log():
+    """LoRa live race log — reads packets from a USB LoRa receiver via the
+    browser's Web Serial API, displays live telemetry, imports Pi CSV backups,
+    replays recorded sessions, exports JSON / CSV. No server-side state."""
+    return render_template('race_log.html')
+
+
+@app.route('/race-testing')
+def race_testing():
+    """Current-limit and battery test lab. Offline CSV comparison only: no motor
+    commands are sent from this page."""
+    return render_template('race_testing.html')
+
+
 @app.route('/api/teams', methods=['GET', 'POST'])
 def teams_api():
     conn = db()
@@ -180,5 +195,8 @@ if __name__ == '__main__':
     init_db()
     print(f'\n  Dashboard:  http://<your-laptop-ip>:5000/')
     print(f'  Scout:      http://<your-laptop-ip>:5000/scout')
-    print(f'  Our speed:  http://<your-laptop-ip>:5000/self\n')
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
+    print(f'  Our speed:  http://<your-laptop-ip>:5000/self')
+    print(f'  Race log:   http://<your-laptop-ip>:5000/race-log  (LoRa pit-side, Chrome only)\n')
+    print(f'  Test lab:   http://<your-laptop-ip>:5000/race-testing  (CSV battery/current-limit analysis)\n')
+    port = int(os.environ.get('PORT', 5000))
+    socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
